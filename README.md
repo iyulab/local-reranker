@@ -111,7 +111,7 @@ public class SearchService(IReranker reranker)
 
 ## Requirements
 
-- .NET 9.0+
+- .NET 10.0+
 - ~90MB disk space (default model)
 - ~200MB RAM (model loaded)
 
