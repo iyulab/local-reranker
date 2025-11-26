@@ -82,3 +82,6 @@ local-docs/
 
 # Build artifacts
 artifacts/
+
+# Local
+.serena/

@@ -110,6 +110,44 @@ This produces scores in the 0.0 - 1.0 range where:
 - ~0.5 = Neutral
 - ~0.0 = Not relevant
 
+**Score Interpretation Guidelines**:
+- Scores are **relative within a single query**, not absolute across queries
+- Different models may produce different score distributions
+- Recommended threshold for filtering: Start with 0.5, adjust based on your use case
+- For best results, use `topK` instead of score thresholds
+
+### Batch Processing
+
+Documents are processed in configurable batches to balance memory usage and throughput:
+
+```csharp
+var options = new RerankerOptions
+{
+    BatchSize = 32  // Default: 32 documents per batch
+};
+```
+
+**Batch Size Guidelines**:
+
+| BatchSize | Memory Usage | Throughput | Recommended For |
+|-----------|--------------|------------|-----------------|
+| 8-16 | Low (~100MB) | Moderate | Memory-constrained environments |
+| 32 | Medium (~200MB) | Good | **Default - balanced choice** |
+| 64-128 | High (~400MB+) | Best | High-throughput servers with ample RAM |
+
+**Concurrency Considerations**:
+- Single `Reranker` instance is thread-safe for concurrent queries
+- Each concurrent call processes its own batch independently
+- For very high concurrency (>50 simultaneous queries), consider multiple instances
+- Batch processing is sequential within a single `RerankAsync` call
+
+**Memory Formula** (approximate):
+```
+Peak Memory ≈ Model Size + (BatchSize × MaxSequenceLength × 4 bytes × 3 tensors)
+            ≈ 90MB + (32 × 512 × 4 × 3)
+            ≈ 90MB + 192KB per batch ≈ ~100MB typical
+```
+
 ## Supported Models
 
 ### v0.1.0 (Current)
