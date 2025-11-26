@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Package Information -->
+    <PackageId>LocalReranker</PackageId>
+    <Product>LocalReranker</Product>
+    <Description>A lightweight, zero-configuration semantic reranker for .NET. No API keys, no cloud dependencies—just install and use. Supports multiple cross-encoder models with automatic download and caching.</Description>
+    <PackageTags>reranker;semantic-search;rag;nlp;machine-learning;onnx;cross-encoder;bert;retrieval;ranking</PackageTags>
+    <PackageProjectUrl>https://github.com/iyulab/local-reranker</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/iyulab/local-reranker</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>Initial release with support for cross-encoder reranking models.</PackageReleaseNotes>
+    
+    <!-- Build Settings -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- Source Link for debugging -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Core Dependencies ONLY (2 packages - Minimal Footprint philosophy) -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" Condition="Exists('..\..\icon.png')" />
+  </ItemGroup>
+
+  <!-- Allow tests to access internal types -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="LocalReranker.Tests" />
+  </ItemGroup>
+
+</Project>
