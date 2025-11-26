@@ -1,0 +1,99 @@
+name: Publish to NuGet
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Directory.Build.props'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  publish:
+    name: Publish NuGet Package
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Extract version from Directory.Build.props
+      id: version
+      run: |
+        VERSION=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Extracted version: $VERSION"
+
+    - name: Check if version already exists on NuGet
+      id: check
+      run: |
+        PACKAGE_NAME="LocalReranker"
+        VERSION="${{ steps.version.outputs.version }}"
+
+        # Check if package version exists
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://api.nuget.org/v3-flatcontainer/${PACKAGE_NAME,,}/index.json")
+
+        if [ "$HTTP_STATUS" == "200" ]; then
+          VERSIONS=$(curl -s "https://api.nuget.org/v3-flatcontainer/${PACKAGE_NAME,,}/index.json" | jq -r '.versions[]')
+          if echo "$VERSIONS" | grep -q "^${VERSION}$"; then
+            echo "Version $VERSION already exists on NuGet.org"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION is new"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "Package not found on NuGet.org (new package)"
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Restore dependencies
+      if: steps.check.outputs.exists == 'false'
+      run: dotnet restore
+
+    - name: Build
+      if: steps.check.outputs.exists == 'false'
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Test
+      if: steps.check.outputs.exists == 'false'
+      run: dotnet test --configuration Release --no-build --verbosity normal
+
+    - name: Pack
+      if: steps.check.outputs.exists == 'false'
+      run: dotnet pack src/LocalReranker/LocalReranker.csproj --configuration Release --no-build --output ./artifacts
+
+    - name: Push to NuGet.org
+      if: steps.check.outputs.exists == 'false'
+      run: |
+        dotnet nuget push ./artifacts/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+
+    - name: Create GitHub Release
+      if: steps.check.outputs.exists == 'false'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
+        files: |
+          ./artifacts/*.nupkg
+          ./artifacts/*.snupkg
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Skip publish (version exists)
+      if: steps.check.outputs.exists == 'true'
+      run: |
+        echo "::notice::Skipping publish - Version ${{ steps.version.outputs.version }} already exists on NuGet.org"
