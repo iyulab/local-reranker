@@ -58,8 +58,8 @@ nCrunchTemp_*
 # Benchmark results
 BenchmarkDotNet.Artifacts/
 
-# Project-specific
-models/
+# Project-specific (downloaded ONNX models at root level only)
+/models/
 *.onnx
 
 # OS files
