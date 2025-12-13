@@ -5,13 +5,17 @@ All notable changes to LocalReranker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2025-12-13 (Final Release)
 
-### Planned for v0.2.0
-- SentencePiece/Unigram tokenizer support
-- BGE model family support:
-  - `bge-reranker-base` - 440MB, multilingual support
-  - `bge-reranker-v2-m3` - 1.1GB, best quality, 8K context
+### Notice
+- **This project has been archived**
+- Superseded by [LocalAI.Reranker](https://github.com/iyulab/local-ai)
+- No further updates will be made to this repository
+- Existing users are encouraged to migrate to LocalAI.Reranker
+
+### Changed
+- Added archive notice to README
+- Final version bump for archival purposes
 
 ## [0.1.0] - 2025-11-26
 

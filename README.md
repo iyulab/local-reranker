@@ -1,5 +1,13 @@
 # LocalReranker
 
+> ⚠️ **ARCHIVED**: This project has been archived and is no longer actively maintained.
+>
+> **Successor**: This project has been superseded by [**LocalAI.Reranker**](https://github.com/iyulab/local-ai), which offers improved features and is actively maintained.
+>
+> Existing users are encouraged to migrate to LocalAI.Reranker for continued support and updates.
+
+---
+
 [![NuGet](https://img.shields.io/nuget/v/LocalReranker.svg)](https://www.nuget.org/packages/LocalReranker/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
