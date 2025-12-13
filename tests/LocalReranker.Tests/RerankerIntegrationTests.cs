@@ -397,13 +397,12 @@ public class RerankerIntegrationTests : IDisposable
     #region GPU Fallback Tests
 
     [Fact]
-    public void RerankerOptions_UseGpu_WithCpuProvider_ShouldFallbackToCpu()
+    public void RerankerOptions_Provider_WithCpu_ShouldUseCpu()
     {
         // Arrange
         var options = new RerankerOptions
         {
-            UseGpu = true,
-            GpuProvider = GpuProvider.Cpu,
+            Provider = ExecutionProvider.Cpu,
             DisableAutoDownload = true
         };
 
@@ -416,14 +415,14 @@ public class RerankerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void RerankerOptions_GpuProvider_AllValues_ShouldBeDefined()
+    public void RerankerOptions_ExecutionProvider_AllValues_ShouldBeDefined()
     {
         // Assert
-        GpuProvider.Auto.Should().BeDefined();
-        GpuProvider.Cuda.Should().BeDefined();
-        GpuProvider.DirectML.Should().BeDefined();
-        GpuProvider.CoreML.Should().BeDefined();
-        GpuProvider.Cpu.Should().BeDefined();
+        ExecutionProvider.Auto.Should().BeDefined();
+        ExecutionProvider.Cuda.Should().BeDefined();
+        ExecutionProvider.DirectML.Should().BeDefined();
+        ExecutionProvider.CoreML.Should().BeDefined();
+        ExecutionProvider.Cpu.Should().BeDefined();
     }
 
     #endregion

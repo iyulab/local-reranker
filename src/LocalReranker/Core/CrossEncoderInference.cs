@@ -42,13 +42,13 @@ internal sealed class CrossEncoderInference : IDisposable
     /// </summary>
     /// <param name="modelPath">Path to the ONNX model.</param>
     /// <param name="modelInfo">Model information.</param>
-    /// <param name="useGpu">Whether to use GPU acceleration.</param>
+    /// <param name="provider">Execution provider for inference.</param>
     /// <param name="threadCount">Number of inference threads.</param>
     /// <returns>Configured inference engine.</returns>
     public static CrossEncoderInference Create(
         string modelPath,
         ModelInfo modelInfo,
-        bool useGpu = false,
+        ExecutionProvider provider = ExecutionProvider.Auto,
         int? threadCount = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
@@ -58,7 +58,7 @@ internal sealed class CrossEncoderInference : IDisposable
             throw new FileNotFoundException($"Model file not found: {modelPath}", modelPath);
         }
 
-        var sessionOptions = CreateSessionOptions(useGpu, threadCount);
+        var sessionOptions = CreateSessionOptions(provider, threadCount);
 
         try
         {
@@ -199,7 +199,7 @@ internal sealed class CrossEncoderInference : IDisposable
         return new DenseTensor<long>(data, [batchSize, sequenceLength]);
     }
 
-    private static SessionOptions CreateSessionOptions(bool useGpu, int? threadCount)
+    private static SessionOptions CreateSessionOptions(ExecutionProvider provider, int? threadCount)
     {
         var options = new SessionOptions
         {
@@ -212,43 +212,98 @@ internal sealed class CrossEncoderInference : IDisposable
         options.IntraOpNumThreads = threads;
         options.InterOpNumThreads = Math.Max(1, threads / 2);
 
-        // Try to use GPU if requested
-        if (useGpu)
-        {
-            TryAddGpuProvider(options);
-        }
+        // Configure execution provider
+        ConfigureExecutionProvider(options, provider);
 
         return options;
     }
 
-    private static void TryAddGpuProvider(SessionOptions options)
+    private static void ConfigureExecutionProvider(SessionOptions options, ExecutionProvider provider)
+    {
+        switch (provider)
+        {
+            case ExecutionProvider.Cpu:
+                // CPU is default, no action needed
+                break;
+
+            case ExecutionProvider.Cuda:
+                TryAddCuda(options);
+                break;
+
+            case ExecutionProvider.DirectML:
+                TryAddDirectML(options);
+                break;
+
+            case ExecutionProvider.CoreML:
+                TryAddCoreML(options);
+                break;
+
+            case ExecutionProvider.Auto:
+            default:
+                TryAddBestAvailableProvider(options);
+                break;
+        }
+    }
+
+    private static void TryAddBestAvailableProvider(SessionOptions options)
     {
         // Try CUDA first (NVIDIA)
-        try
-        {
-            options.AppendExecutionProvider_CUDA();
-            return;
-        }
-        catch
-        {
-            // CUDA not available
-        }
+        if (TryAddCuda(options)) return;
 
-        // Try DirectML (Windows)
+        // Try DirectML (Windows) or CoreML (macOS)
         if (OperatingSystem.IsWindows())
         {
-            try
-            {
-                options.AppendExecutionProvider_DML();
-                return;
-            }
-            catch
-            {
-                // DirectML not available
-            }
+            if (TryAddDirectML(options)) return;
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            if (TryAddCoreML(options)) return;
         }
 
         // Fall back to CPU (no action needed, it's the default)
+    }
+
+    private static bool TryAddCuda(SessionOptions options)
+    {
+        try
+        {
+            options.AppendExecutionProvider_CUDA();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryAddDirectML(SessionOptions options)
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+
+        try
+        {
+            options.AppendExecutionProvider_DML();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryAddCoreML(SessionOptions options)
+    {
+        if (!OperatingSystem.IsMacOS()) return false;
+
+        try
+        {
+            options.AppendExecutionProvider_CoreML();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public void Dispose()

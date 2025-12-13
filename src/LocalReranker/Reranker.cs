@@ -186,11 +186,10 @@ public sealed class Reranker : IReranker
             var tokenizer = TokenizerWrapper.FromFile(modelPaths.TokenizerPath, maxLength);
 
             // Initialize inference engine
-            var useGpu = _options.UseGpu && _options.GpuProvider != GpuProvider.Cpu;
             var inference = CrossEncoderInference.Create(
                 modelPaths.ModelPath,
                 modelInfo,
-                useGpu,
+                _options.Provider,
                 _options.ThreadCount);
 
             return new RerankerState(modelInfo, tokenizer, inference);

@@ -26,31 +26,24 @@ public sealed class RerankerOptions
 
     /// <summary>
     /// Gets or sets the custom cache directory for model files.
-    /// <para>Default: null (platform-specific default location)</para>
+    /// <para>Default: null (uses HuggingFace standard cache location)</para>
     /// </summary>
     /// <remarks>
-    /// Default locations:
+    /// Default location follows HuggingFace standard: ~/.cache/huggingface/hub
+    /// <para>Environment variables (in priority order):</para>
     /// <list type="bullet">
-    /// <item>Windows: %LOCALAPPDATA%\LocalReranker\models</item>
-    /// <item>Linux: ~/.cache/localreranker/models</item>
-    /// <item>macOS: ~/Library/Caches/LocalReranker/models</item>
+    /// <item>HF_HUB_CACHE</item>
+    /// <item>HF_HOME + "/hub"</item>
+    /// <item>XDG_CACHE_HOME + "/huggingface/hub"</item>
     /// </list>
-    /// Can also be set via LOCALRERANKER_CACHE_DIR environment variable.
     /// </remarks>
     public string? CacheDirectory { get; set; }
 
     /// <summary>
-    /// Gets or sets whether to use GPU acceleration if available.
-    /// Falls back to CPU if GPU is not available.
-    /// <para>Default: false</para>
+    /// Gets or sets the execution provider for inference.
+    /// <para>Default: Auto (automatically selects the best available provider)</para>
     /// </summary>
-    public bool UseGpu { get; set; } = false;
-
-    /// <summary>
-    /// Gets or sets the preferred GPU provider when UseGpu is true.
-    /// <para>Default: Auto (tries CUDA, then DirectML, then CPU)</para>
-    /// </summary>
-    public GpuProvider GpuProvider { get; set; } = GpuProvider.Auto;
+    public ExecutionProvider Provider { get; set; } = ExecutionProvider.Auto;
 
     /// <summary>
     /// Gets or sets whether to disable automatic model download.
@@ -80,42 +73,73 @@ public sealed class RerankerOptions
         ModelId = ModelId,
         MaxSequenceLength = MaxSequenceLength,
         CacheDirectory = CacheDirectory,
-        UseGpu = UseGpu,
-        GpuProvider = GpuProvider,
+        Provider = Provider,
         DisableAutoDownload = DisableAutoDownload,
         ThreadCount = ThreadCount,
         BatchSize = BatchSize
     };
+
+    /// <summary>
+    /// Gets the default cache directory path following HuggingFace standard.
+    /// </summary>
+    public static string GetDefaultCacheDirectory()
+    {
+        // Priority 1: HF_HUB_CACHE
+        var hfHubCache = Environment.GetEnvironmentVariable("HF_HUB_CACHE");
+        if (!string.IsNullOrWhiteSpace(hfHubCache))
+        {
+            return hfHubCache;
+        }
+
+        // Priority 2: HF_HOME + "/hub"
+        var hfHome = Environment.GetEnvironmentVariable("HF_HOME");
+        if (!string.IsNullOrWhiteSpace(hfHome))
+        {
+            return Path.Combine(hfHome, "hub");
+        }
+
+        // Priority 3: XDG_CACHE_HOME + "/huggingface/hub"
+        var xdgCache = Environment.GetEnvironmentVariable("XDG_CACHE_HOME");
+        if (!string.IsNullOrWhiteSpace(xdgCache))
+        {
+            return Path.Combine(xdgCache, "huggingface", "hub");
+        }
+
+        // Default: ~/.cache/huggingface/hub
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(userProfile, ".cache", "huggingface", "hub");
+    }
 }
 
 /// <summary>
-/// GPU provider options for hardware acceleration.
+/// Specifies the execution provider for ONNX Runtime inference.
 /// </summary>
-public enum GpuProvider
+public enum ExecutionProvider
 {
     /// <summary>
-    /// Automatically select the best available GPU provider.
-    /// Tries CUDA → DirectML → CPU.
+    /// Automatically select the best available provider.
+    /// Selection order: CUDA → DirectML (Windows) / CoreML (macOS) → CPU.
+    /// This is the recommended default for zero-configuration usage.
     /// </summary>
     Auto,
 
     /// <summary>
-    /// Use NVIDIA CUDA (requires NVIDIA GPU and CUDA toolkit).
+    /// CPU execution (works everywhere).
+    /// </summary>
+    Cpu,
+
+    /// <summary>
+    /// NVIDIA CUDA GPU acceleration.
     /// </summary>
     Cuda,
 
     /// <summary>
-    /// Use DirectML (Windows only, supports any DirectX 12 GPU).
+    /// Windows DirectML GPU acceleration (AMD, Intel, NVIDIA).
     /// </summary>
     DirectML,
 
     /// <summary>
-    /// Use Apple CoreML (macOS/iOS with Apple Silicon).
+    /// Apple CoreML acceleration.
     /// </summary>
-    CoreML,
-
-    /// <summary>
-    /// Force CPU execution (no GPU).
-    /// </summary>
-    Cpu
+    CoreML
 }

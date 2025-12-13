@@ -22,11 +22,13 @@ public class CacheManagerTests : IDisposable
     }
 
     [Fact]
-    public void GetModelDirectory_ShouldSanitizeModelId()
+    public void GetModelDirectory_ShouldFollowHuggingFaceCacheStructure()
     {
         var dir = _cacheManager.GetModelDirectory("cross-encoder/ms-marco-MiniLM-L-6-v2");
 
-        dir.Should().Contain("cross-encoder--ms-marco-MiniLM-L-6-v2");
+        // HuggingFace cache structure: models--{org}--{model}/snapshots/{revision}
+        dir.Should().Contain("models--cross-encoder--ms-marco-MiniLM-L-6-v2");
+        dir.Should().Contain("snapshots");
         dir.Should().EndWith("main");
     }
 
@@ -35,7 +37,8 @@ public class CacheManagerTests : IDisposable
     {
         var dir = _cacheManager.GetModelDirectory("some/model", "v1.0");
 
-        dir.Should().EndWith(Path.Combine("some--model", "v1.0"));
+        // HuggingFace cache structure: models--{org}--{model}/snapshots/{revision}
+        dir.Should().Contain(Path.Combine("models--some--model", "snapshots", "v1.0"));
     }
 
     [Fact]
@@ -44,7 +47,7 @@ public class CacheManagerTests : IDisposable
         var path = _cacheManager.GetModelFilePath("org/model", "model.onnx");
 
         path.Should().EndWith("model.onnx");
-        path.Should().Contain("org--model");
+        path.Should().Contain("models--org--model");
     }
 
     [Fact]
@@ -83,7 +86,7 @@ public class CacheManagerTests : IDisposable
 
         _cacheManager.DeleteModel("delete/test");
 
-        Directory.Exists(Path.Combine(_testCacheDir, "delete--test")).Should().BeFalse();
+        Directory.Exists(Path.Combine(_testCacheDir, "models--delete--test")).Should().BeFalse();
     }
 
     [Fact]

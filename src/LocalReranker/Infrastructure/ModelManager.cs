@@ -1,6 +1,9 @@
 using LocalReranker.Exceptions;
 using LocalReranker.Models;
 
+// Use the DownloadProgress from root namespace
+using DownloadProgress = LocalReranker.DownloadProgress;
+
 namespace LocalReranker.Infrastructure;
 
 /// <summary>
@@ -65,28 +68,22 @@ internal sealed class ModelManager : IDisposable
         // Download model file
         if (!modelExists)
         {
-            var modelProgress = progress is null ? null : new Progress<float>(p =>
-                progress.Report(new DownloadProgress(modelInfo.OnnxFile, p * 0.9f)));
-
             await _downloadClient.DownloadFileAsync(
                 modelInfo.Id,
                 modelInfo.OnnxFile,
                 modelPath,
-                progress: modelProgress,
+                progress: progress,
                 cancellationToken: cancellationToken);
         }
 
         // Download tokenizer file
         if (!tokenizerExists)
         {
-            var tokenizerProgress = progress is null ? null : new Progress<float>(p =>
-                progress.Report(new DownloadProgress(modelInfo.TokenizerFile, 0.9f + p * 0.1f)));
-
             await _downloadClient.DownloadFileAsync(
                 modelInfo.Id,
                 modelInfo.TokenizerFile,
                 tokenizerPath,
-                progress: tokenizerProgress,
+                progress: progress,
                 cancellationToken: cancellationToken);
         }
 
@@ -161,9 +158,3 @@ internal sealed class ModelManager : IDisposable
 /// <param name="TokenizerPath">Path to the tokenizer configuration file.</param>
 public readonly record struct ModelPaths(string ModelPath, string TokenizerPath);
 
-/// <summary>
-/// Progress information for model download.
-/// </summary>
-/// <param name="CurrentFile">Name of the file being downloaded.</param>
-/// <param name="Progress">Download progress from 0.0 to 1.0.</param>
-public readonly record struct DownloadProgress(string CurrentFile, float Progress);

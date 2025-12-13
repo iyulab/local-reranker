@@ -1,23 +1,19 @@
 namespace LocalReranker.Infrastructure;
 
 /// <summary>
-/// Manages local cache directories for model storage.
+/// Manages local cache directories for model storage following HuggingFace standard.
 /// </summary>
 internal sealed class CacheManager
 {
-    private const string CacheEnvVar = "LOCALRERANKER_CACHE_DIR";
-    private const string AppName = "LocalReranker";
-    private const string ModelsFolder = "models";
-
     private readonly string _cacheDirectory;
 
     /// <summary>
     /// Initializes a new instance with optional custom cache directory.
     /// </summary>
-    /// <param name="customCacheDirectory">Custom cache directory path, or null to use default.</param>
+    /// <param name="customCacheDirectory">Custom cache directory path, or null to use HuggingFace default.</param>
     public CacheManager(string? customCacheDirectory = null)
     {
-        _cacheDirectory = ResolveDirectory(customCacheDirectory);
+        _cacheDirectory = customCacheDirectory ?? RerankerOptions.GetDefaultCacheDirectory();
     }
 
     /// <summary>
@@ -26,17 +22,21 @@ internal sealed class CacheManager
     public string CacheDirectory => _cacheDirectory;
 
     /// <summary>
-    /// Gets the full path for a model's cache directory.
+    /// Gets the full path for a model's cache directory following HuggingFace structure.
     /// </summary>
     /// <param name="modelId">The model identifier (e.g., "cross-encoder/ms-marco-MiniLM-L-6-v2").</param>
     /// <param name="revision">The model revision (default: "main").</param>
     /// <returns>Full path to the model directory.</returns>
+    /// <remarks>
+    /// Uses HuggingFace cache structure: models--{org}--{model}/snapshots/{revision}
+    /// </remarks>
     public string GetModelDirectory(string modelId, string revision = "main")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
 
+        // HuggingFace cache structure: models--{org}--{model}/snapshots/{revision}
         var sanitizedModelId = SanitizeModelId(modelId);
-        return Path.Combine(_cacheDirectory, sanitizedModelId, revision);
+        return Path.Combine(_cacheDirectory, $"models--{sanitizedModelId}", "snapshots", revision);
     }
 
     /// <summary>
@@ -86,13 +86,24 @@ internal sealed class CacheManager
     public void DeleteModel(string modelId, string? revision = null)
     {
         var sanitizedModelId = SanitizeModelId(modelId);
-        var targetPath = revision is null
-            ? Path.Combine(_cacheDirectory, sanitizedModelId)
-            : Path.Combine(_cacheDirectory, sanitizedModelId, revision);
+        var modelDir = Path.Combine(_cacheDirectory, $"models--{sanitizedModelId}");
 
-        if (Directory.Exists(targetPath))
+        if (revision is null)
         {
-            Directory.Delete(targetPath, recursive: true);
+            // Delete entire model directory
+            if (Directory.Exists(modelDir))
+            {
+                Directory.Delete(modelDir, recursive: true);
+            }
+        }
+        else
+        {
+            // Delete specific revision
+            var revisionPath = Path.Combine(modelDir, "snapshots", revision);
+            if (Directory.Exists(revisionPath))
+            {
+                Directory.Delete(revisionPath, recursive: true);
+            }
         }
     }
 
@@ -107,59 +118,22 @@ internal sealed class CacheManager
             yield break;
         }
 
-        foreach (var modelDir in Directory.GetDirectories(_cacheDirectory))
+        // HuggingFace structure: models--{org}--{model}/snapshots/{revision}
+        foreach (var modelDir in Directory.GetDirectories(_cacheDirectory, "models--*"))
         {
-            var modelId = Path.GetFileName(modelDir).Replace("--", "/");
-            foreach (var revisionDir in Directory.GetDirectories(modelDir))
+            var dirName = Path.GetFileName(modelDir);
+            // Remove "models--" prefix and restore slashes
+            var modelId = dirName[8..].Replace("--", "/");
+
+            var snapshotsDir = Path.Combine(modelDir, "snapshots");
+            if (!Directory.Exists(snapshotsDir)) continue;
+
+            foreach (var revisionDir in Directory.GetDirectories(snapshotsDir))
             {
                 var revision = Path.GetFileName(revisionDir);
                 yield return (modelId, revision);
             }
         }
-    }
-
-    private static string ResolveDirectory(string? customPath)
-    {
-        // Priority: Custom path > Environment variable > Platform default
-        if (!string.IsNullOrWhiteSpace(customPath))
-        {
-            return customPath;
-        }
-
-        var envPath = Environment.GetEnvironmentVariable(CacheEnvVar);
-        if (!string.IsNullOrWhiteSpace(envPath))
-        {
-            return envPath;
-        }
-
-        return GetPlatformDefaultPath();
-    }
-
-    private static string GetPlatformDefaultPath()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            // Windows: %LOCALAPPDATA%\LocalReranker\models
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            return Path.Combine(localAppData, AppName, ModelsFolder);
-        }
-
-        if (OperatingSystem.IsMacOS())
-        {
-            // macOS: ~/Library/Caches/LocalReranker/models
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return Path.Combine(home, "Library", "Caches", AppName, ModelsFolder);
-        }
-
-        // Linux and others: ~/.cache/localreranker/models
-        var xdgCache = Environment.GetEnvironmentVariable("XDG_CACHE_HOME");
-        if (!string.IsNullOrWhiteSpace(xdgCache))
-        {
-            return Path.Combine(xdgCache, AppName.ToLowerInvariant(), ModelsFolder);
-        }
-
-        var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return Path.Combine(homeDir, ".cache", AppName.ToLowerInvariant(), ModelsFolder);
     }
 
     private static string SanitizeModelId(string modelId)

@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using LocalReranker.Exceptions;
 
+// Use the DownloadProgress from root namespace
+using DownloadProgress = LocalReranker.DownloadProgress;
+
 namespace LocalReranker.Infrastructure;
 
 /// <summary>
@@ -32,14 +35,14 @@ internal sealed class HuggingFaceClient : IDisposable
     /// <param name="fileName">File name within the repository.</param>
     /// <param name="destinationPath">Local path to save the file.</param>
     /// <param name="revision">Repository revision (default: "main").</param>
-    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="progress">Optional progress reporter with detailed download information.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task DownloadFileAsync(
         string repositoryId,
         string fileName,
         string destinationPath,
         string revision = "main",
-        IProgress<float>? progress = null,
+        IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryId);
@@ -60,7 +63,7 @@ internal sealed class HuggingFaceClient : IDisposable
         {
             try
             {
-                await DownloadWithProgressAsync(url, tempPath, progress, cancellationToken);
+                await DownloadWithProgressAsync(url, tempPath, fileName, progress, cancellationToken);
 
                 // Verify it's not a LFS pointer file
                 if (FileHasher.IsLfsPointerFile(tempPath))
@@ -139,7 +142,8 @@ internal sealed class HuggingFaceClient : IDisposable
     private async Task DownloadWithProgressAsync(
         string url,
         string destinationPath,
-        IProgress<float>? progress,
+        string fileName,
+        IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
         using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -150,7 +154,7 @@ internal sealed class HuggingFaceClient : IDisposable
             throw new HttpRequestException($"Failed to download file. Status: {statusCode} ({response.StatusCode})");
         }
 
-        var totalBytes = response.Content.Headers.ContentLength;
+        var totalBytes = response.Content.Headers.ContentLength ?? 0;
         await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using var fileStream = new FileStream(
             destinationPath,
@@ -169,13 +173,20 @@ internal sealed class HuggingFaceClient : IDisposable
             await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             bytesRead += read;
 
-            if (totalBytes > 0 && progress is not null)
+            progress?.Report(new DownloadProgress
             {
-                progress.Report((float)bytesRead / totalBytes.Value);
-            }
+                FileName = fileName,
+                BytesDownloaded = bytesRead,
+                TotalBytes = totalBytes
+            });
         }
 
-        progress?.Report(1.0f);
+        progress?.Report(new DownloadProgress
+        {
+            FileName = fileName,
+            BytesDownloaded = totalBytes,
+            TotalBytes = totalBytes
+        });
     }
 
     private static string BuildResolveUrl(string repositoryId, string fileName, string revision)

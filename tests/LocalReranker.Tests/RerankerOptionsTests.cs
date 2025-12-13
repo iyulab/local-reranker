@@ -13,8 +13,7 @@ public class RerankerOptionsTests
         options.ModelId.Should().Be("default");
         options.MaxSequenceLength.Should().BeNull();
         options.CacheDirectory.Should().BeNull();
-        options.UseGpu.Should().BeFalse();
-        options.GpuProvider.Should().Be(GpuProvider.Auto);
+        options.Provider.Should().Be(ExecutionProvider.Auto);
         options.DisableAutoDownload.Should().BeFalse();
         options.ThreadCount.Should().BeNull();
         options.BatchSize.Should().Be(32);
@@ -28,8 +27,7 @@ public class RerankerOptionsTests
             ModelId = "quality",
             MaxSequenceLength = 256,
             CacheDirectory = "/custom/cache",
-            UseGpu = true,
-            GpuProvider = GpuProvider.Cuda,
+            Provider = ExecutionProvider.Cuda,
             DisableAutoDownload = true,
             ThreadCount = 4,
             BatchSize = 64
@@ -45,17 +43,16 @@ public class RerankerOptionsTests
         clone.ModelId.Should().Be("quality");
         clone.MaxSequenceLength.Should().Be(256);
         clone.CacheDirectory.Should().Be("/custom/cache");
-        clone.UseGpu.Should().BeTrue();
-        clone.GpuProvider.Should().Be(GpuProvider.Cuda);
+        clone.Provider.Should().Be(ExecutionProvider.Cuda);
         clone.DisableAutoDownload.Should().BeTrue();
         clone.ThreadCount.Should().Be(4);
         clone.BatchSize.Should().Be(64);
     }
 
     [Fact]
-    public void GpuProvider_ShouldHaveAllOptions()
+    public void ExecutionProvider_ShouldHaveAllOptions()
     {
-        Enum.GetValues<GpuProvider>().Should().HaveCount(5);
-        Enum.GetNames<GpuProvider>().Should().Contain(["Auto", "Cuda", "DirectML", "CoreML", "Cpu"]);
+        Enum.GetValues<ExecutionProvider>().Should().HaveCount(5);
+        Enum.GetNames<ExecutionProvider>().Should().Contain(["Auto", "Cuda", "DirectML", "CoreML", "Cpu"]);
     }
 }

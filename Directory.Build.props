@@ -13,7 +13,7 @@
 
   <!-- Package information -->
   <PropertyGroup>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>iyulab</Authors>
     <Company>iyulab</Company>
     <Copyright>Copyright (c) 2025 iyulab</Copyright>
